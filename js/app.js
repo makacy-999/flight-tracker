@@ -66,9 +66,29 @@
   // ---------- 地图初始化 ----------
   function initMap() {
     map = L.map("map", { zoomControl: true }).setView([32, 112], 4);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+
+    // 国内可稳定访问的高德瓦片（OSM 在国内被阻断，导致地图无法加载）
+    // 矢量底图：多子域名负载均衡
+    const amapVec = L.tileLayer(
+      "https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}",
+      { subdomains: "1234", maxZoom: 18, attribution: "&copy; 高德地图" }
+    );
+    // 卫星底图
+    const amapSat = L.tileLayer(
+      "https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}",
+      { subdomains: "1234", maxZoom: 18, attribution: "&copy; 高德地图" }
+    );
+    // 卫星+中文标注叠加层
+    const amapSatLabel = L.tileLayer(
+      "https://webst0{s}.is.autonavi.com/appmaptile?style=8&x={x}&y={y}&z={z}",
+      { subdomains: "1234", maxZoom: 18, attribution: "&copy; 高德地图" }
+    );
+
+    amapVec.addTo(map);
+    L.control.layers({
+      "标准地图": amapVec,
+      "卫星地图": amapSat,
+      "卫星+标注": L.layerGroup([amapSat, amapSatLabel]),
     }).addTo(map);
   }
 
