@@ -17,7 +17,8 @@ GitHub Pages 部署后访问：`https://<用户名>.github.io/<仓库名>/`
 ## 🛠 技术栈
 - 原生 HTML / CSS / JavaScript（零依赖、无构建）
 - [Leaflet 1.9.4](https://leafletjs.com/) + OpenStreetMap 免费瓦片
-- 数据源：[OpenSky Network](https://opensky-network.org/) 免费实时接口（浏览器 CORS 可直接访问，无需 Key）
+- 数据源：[OpenSky Network](https://opensky-network.org/) 免费实时接口
+- **数据更新**：GitHub Actions 每 10 分钟定时抓取 OpenSky 中国区域数据，存为 `data/flights.json`，前端从仓库读取（规避 OpenSky 的跨域限制）
 
 ## 📖 本地运行
 ```bash
@@ -33,12 +34,15 @@ python3 -m http.server 8000
 ## 📂 目录
 ```
 flight-tracker/
-├── index.html        # 页面骨架
-├── css/style.css     # 样式
+├── index.html            # 页面骨架
+├── css/style.css         # 样式
 ├── js/
-│   ├── airlines.js   # 航司字典
-│   └── app.js        # 核心逻辑
-└── docs/设计文档.md   # 需求与设计文档
+│   ├── airlines.js       # 航司字典
+│   └── app.js            # 核心逻辑
+├── scripts/fetch_data.py # GitHub Actions 抓取脚本
+├── data/flights.json     # 定时抓取的航班数据（Actions 维护）
+├── .github/workflows/    # 定时更新数据的工作流
+└── docs/设计文档.md       # 需求与设计文档
 ```
 
 ## 📄 License
