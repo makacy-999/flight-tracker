@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>冷链物流 · 航班实时动态监控</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">✈️</span>
+      <div>
+        <h1>航班实时动态监控</h1>
+        <p class="sub">冷链物流 · 运力在途跟踪</p>
+      </div>
+    </div>
+    <div class="source-badge">数据源：OpenSky Network</div>
+  </header>
+
+  <main class="layout">
+    <!-- 左侧：查询与航班列表 -->
+    <section class="panel left-panel">
+      <div class="search-box">
+        <h2>查询航班</h2>
+        <div class="search-row">
+          <input type="text" id="queryInput" placeholder="输入航班号或航司，如 CCA856 / CCA / CSN" autocomplete="off" list="airlineList">
+          <button id="searchBtn" class="btn-primary">查询</button>
+        </div>
+        <datalist id="airlineList">
+          <option value="CCA">国航（CA）</option>
+          <option value="CSN">南航（CZ）</option>
+          <option value="CES">东航（MU）</option>
+          <option value="CHH">海航（HU）</option>
+          <option value="CSC">川航（3U）</option>
+          <option value="CSZ">深航（ZH）</option>
+          <option value="CXA">厦航（MF）</option>
+          <option value="CBJ">首都航空（JD）</option>
+          <option value="CDG">山东航（SC）</option>
+          <option value="DKH">吉祥航（HO）</option>
+          <option value="CCA1654">航班示例：国航 CCA1654</option>
+        </datalist>
+        <div class="search-hint">支持：完整航班号（CCA1654）或航司代码（CCA / 国航 CA）。留空时点查询显示全量飞机。</div>
+        <div class="refresh-bar">
+          <label><input type="checkbox" id="autoRefresh" checked> 每 10 秒自动刷新</label>
+          <span class="last-update" id="lastUpdate">— 尚未更新</span>
+        </div>
+        <div class="status-line"><span id="statusText" class="status">就绪，等待查询…</span></div>
+      </div>
+
+      <div class="results">
+        <div class="results-head">
+          <h2>匹配航班 <span id="resultCount" class="count-badge">0</span></h2>
+          <button id="clearBtn" class="btn-ghost" title="清除在地图与列表中选择">清除选中</button>
+        </div>
+        <div id="flightList" class="flight-list">
+          <div class="empty">输入航班号或航司后点击「查询」</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 右侧：地图 -->
+    <section class="panel map-panel">
+      <div id="map"></div>
+      <div id="flightDetail" class="flight-detail hidden"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    数据来自 <a href="https://opensky-network.org/" target="_blank" rel="noopener">OpenSky Network</a> 免费公开接口，覆盖全球约 8 千架空域飞机，仅供冷链物流运力监控参考 · 非实时管制数据
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/airlines.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
