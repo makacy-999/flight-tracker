@@ -6,11 +6,10 @@
   "use strict";
 
   // ---------- 配置 ----------
-  const OPENSKY_URL = "https://opensky-network.org/api/states/all";
-  // 默认查询范围（中国及周边），避免一次性下载全量 ~8千条过大
-  const DEFAULT_BOUNDS = { lamin: 0, lomin: 70, lamax: 55, lomax: 145 };
-  const REFRESH_MS = 10000;
-  const MATCH_CACHE_TTL = 60000; // 单条航班 60s 内不再重复告警
+  // 数据来源：GitHub Actions 定时抓取的静态 JSON（来自 OpenSky，规避其 CORS 限制）
+  const DATA_URL = "https://raw.githubusercontent.com/makacy-999/flight-tracker/main/data/flights.json";
+  const REFRESH_MS = 30000;   // 前端定时刷新读取最新 JSON
+  const MATCH_CACHE_TTL = 60000;
 
   // ---------- 状态 ----------
   let map = null;
@@ -20,6 +19,7 @@
   let selectedIcao = null;     // 选中的飞机 icao24
   let refreshTimer = null;
   let lastFetchAt = 0;         // 上次抓取（用于提示数据新鲜度）
+  let generatedTime = null;    // 数据文件生成时间（Actions 抓取时刻）
 
   // ---------- DOM ----------
   const elInput = document.getElementById("queryInput");
@@ -72,18 +72,39 @@
     }).addTo(map);
   }
 
-  // ---------- 数据抓取 ----------
-  async function fetchStates(bounds) {
-    const b = bounds || DEFAULT_BOUNDS;
-    const url = `${OPENSKY_URL}?lamin=${b.lamin}&lomin=${b.lomin}&lamax=${b.lamax}&lomax=${b.lomax}`;
+  function fmtGenerated() {
+    if (!generatedTime) return "数据时间未知";
+    const d = new Date(generatedTime);
+    return "数据抓取于 " + d.toLocaleTimeString("zh-CN", { hour12: false }) + "（每10分钟更新）";
+  }
+
+  // ---------- 数据获取：从 GitHub 仓库读取 Actions 定时抓取的 JSON ----------
+  async function fetchStates() {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 20000);
     try {
-      const res = await fetch(url, { signal: ctrl.signal });
+      const res = await fetch(DATA_URL, { signal: ctrl.signal });
       if (!res.ok) throw new Error("HTTP " + res.status);
       const data = await res.json();
       lastFetchAt = Date.now();
-      return data.states || [];
+      generatedTime = data.generated || null;
+      // 把精简的 flights 数组还原为与原 states 数组兼容的结构
+      return (data.flights || []).map((f) => {
+        const arr = new Array(17).fill(null);
+        arr[S.ICAO24] = f.icao24;
+        arr[S.CALLSIGN] = f.callsign;
+        arr[S.ORIGIN] = f.country;
+        arr[S.TIME_POS] = f.t;
+        arr[S.LAST_CONTACT] = f.t;
+        arr[S.LON] = f.lon;
+        arr[S.LAT] = f.lat;
+        arr[S.BARO_ALT] = f.alt;
+        arr[S.ON_GROUND] = (f.alt == null || f.alt <= 0) && (f.vel == null || f.vel < 5);
+        arr[S.VELOCITY] = f.vel;
+        arr[S.TRACK] = f.track;
+        arr[S.V_RATE] = f.vrate;
+        return arr;
+      });
     } catch (e) {
       throw new Error("获取数据失败: " + (e.message || e));
     } finally {
@@ -218,7 +239,7 @@
     status("正在查询「" + prefix + "」的实时航班…", "loading");
     elSearch.disabled = true;
     try {
-      const states = await fetchStates(null);
+      const states = await fetchStates();
       // 匹配：完整航班号精确（统一转 ICAO，如 CA1654→CCA1654），否则按航司前缀
       const upraw = raw.trim().toUpperCase();
       const isFullFlight = /^[A-Z]{2,3}\d{1,4}$/.test(upraw);
@@ -232,7 +253,7 @@
       renderResults(matched, prefix);
       const airInfo = airlineName(prefix);
       status(`查询完成：${matched.length} 架「${airInfo}」在空/地面`, "ok");
-      elLast.textContent = "更新于 " + new Date().toLocaleTimeString("zh-CN", { hour12: false });
+      elLast.textContent = fmtGenerated();
       setupAutoRefresh();
     } catch (e) {
       status(e.message, "error");
@@ -246,10 +267,10 @@
     if (elAuto.checked && pendingQuery) {
       refreshTimer = setInterval(async () => {
         try {
-          const states = await fetchStates(null);
+          const states = await fetchStates();
           const matched = states.filter((s) => matchQuery(s, pendingQuery));
           renderResults(matched, pendingQuery);
-          elLast.textContent = "更新于 " + new Date().toLocaleTimeString("zh-CN", { hour12: false });
+          elLast.textContent = fmtGenerated();
         } catch (e) {
           // 静默，不打断用户
         }
@@ -276,9 +297,10 @@
     initMap();
     bind();
     // 初次加载：抓取一次统计全国数量（不限匹配）
-    fetchStates(null).then((st) => {
+    fetchStates().then((st) => {
       const total = st.filter((s) => s[S.CALLSIGN] && s[S.CALLSIGN].trim()).length;
       status(`数据已就绪，当前区域约 ${total} 架航班可查。输入航班号或航司开始。`, "ok");
+      elLast.textContent = fmtGenerated();
     }).catch((e) => status(e.message, "error"));
   }
 
