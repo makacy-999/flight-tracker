@@ -1,9 +1,9 @@
 name: 更新航班数据
 
-# 每 10 分钟定时抓取一次 OpenSky 数据（免费额度内）
+# 每 15 分钟定时抓取一次 OpenSky 数据（免费额度内，且足够画飞机轨迹）
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '*/15 * * * *'
   workflow_dispatch: {}   # 支持手动触发
 
 permissions:
@@ -33,7 +33,7 @@ jobs:
         run: |
           git config user.name "flight-tracker-bot"
           git config user.email "actions@github.com"
-          git add data/flights.json
+          git add data/flights.json data/tracks.json
           if ! git diff --cached --quiet; then
             git commit -m "chore: 更新航班数据 $(date -u +'%Y-%m-%d %H:%M UTC')"
             git push

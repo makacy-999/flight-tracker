@@ -8,6 +8,7 @@
   // ---------- 配置 ----------
   // 数据来源：GitHub Actions 定时抓取的静态 JSON（来自 OpenSky，规避其 CORS 限制）
   const DATA_URL = "https://raw.githubusercontent.com/makacy-999/flight-tracker/main/data/flights.json";
+  const TRACKS_URL = "https://raw.githubusercontent.com/makacy-999/flight-tracker/main/data/tracks.json";
   const REFRESH_MS = 30000;   // 前端定时刷新读取最新 JSON
   const MATCH_CACHE_TTL = 60000;
 
@@ -20,6 +21,9 @@
   let refreshTimer = null;
   let lastFetchAt = 0;         // 上次抓取（用于提示数据新鲜度）
   let generatedTime = null;    // 数据文件生成时间（Actions 抓取时刻）
+  let trackLines = [];         // 轨迹 polyline 图层
+  let currentTracks = {};      // 最新轨迹数据
+  let localObserved = {};      // 本地观察到的航班位置点（页面存活期间累积）
 
   // ---------- DOM ----------
   const elInput = document.getElementById("queryInput");
@@ -146,6 +150,20 @@
     return cs === query || cs.startsWith(query);
   }
 
+  // 读取历史轨迹数据
+  async function fetchTracks() {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20000);
+    try {
+      const res = await fetch(TRACKS_URL, { signal: ctrl.signal });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      return data.tracks || {};
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   // ---------- 渲染 ----------
   function clearMarkers() {
     markers.forEach((m) => { try { map.removeLayer(m); } catch (e) {} });
@@ -155,20 +173,71 @@
   function renderResults(states, query) {
     currentResults = states;
     clearMarkers();
+    clearTrackLines();
     renderList();
+    // 本地累积观察点（页面存活期间记录每个航班位置，与服务器轨迹合并显示）
+    const nowTs = Math.floor(Date.now() / 1000);
+    states.forEach((st) => {
+      const cs = (st[S.CALLSIGN] || "").trim();
+      if (!cs) return;
+      const lat = st[S.LAT], lon = st[S.LON];
+      if (lat == null || lon == null) return;
+      const arr = localObserved[cs] || [];
+      // 距上一点 >60s 才追加，避免刷屏
+      if (!arr.length || (nowTs - arr[arr.length - 1].t) > 60) {
+        arr.push({ lat, lon, alt: st[S.BARO_ALT], vel: st[S.VELOCITY], track: st[S.TRACK], t: nowTs });
+        if (arr.length > 32) arr.shift();
+        localObserved[cs] = arr;
+      }
+    });
+    // 画所有匹配航班轨迹（服务器轨迹 + 本地观察合并）
+    states.forEach((st) => {
+      const cs = (st[S.CALLSIGN] || "").trim();
+      if (cs) drawCombinedTrack(cs);
+    });
     // 重新渲染选中标记
     if (selectedIcao) drawMarkerFor(selectedIcao);
   }
 
-  function makeIcon(kind) {
-    // 地面(灰) / 飞行中(蓝) 小型飞机图标
-    const color = kind === "ground" ? "#9aa0a6" : "#1a73e8";
+  function makePlaneIcon(kind, track) {
+    // 飞机 SVG 图标，带航向旋转；地面灰、飞行中绿
+    const color = kind === "ground" ? "#9aa0a6" : "#22c55e";
+    const rot = (track != null ? track : 0);
     return L.divIcon({
       className: "plane-icon",
-      html: `<div style="width:16px;height:16px;background:${color};border-radius:8px;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);"></div>`,
-      iconSize: [20, 20],
-      iconAnchor: [10, 10],
+      html: `<div style="transform:rotate(${rot}deg);width:22px;height:22px;">
+        <svg viewBox="0 0 48 48" width="22" height="22">
+          <path d="M24 2 L28 18 L44 24 L28 30 L24 46 L20 30 L4 24 L20 18 Z"
+            fill="${color}" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+      </div>`,
+      iconSize: [22, 22],
+      iconAnchor: [11, 11],
     });
+  }
+
+  // 清除轨迹线
+  function clearTrackLines() {
+    trackLines.forEach((l) => { try { map.removeLayer(l); } catch (e) {} });
+    trackLines = [];
+  }
+
+  // 为指定 callsign 画轨迹线（合并服务器历史轨迹 + 本地观察点）
+  function drawCombinedTrack(callsign) {
+    const serverPts = (currentTracks && currentTracks[callsign]) || [];
+    const localPts = localObserved[callsign] || [];
+    // 合并：服务器点在前，本地点在最后
+    const all = [...serverPts, ...localPts];
+    const latlngs = all.map((p) => [p.lat, p.lon]).filter((c) => c[0] != null && c[1] != null);
+    if (latlngs.length < 2) return null;
+    const line = L.polyline(latlngs, {
+      color: "#f59e0b",
+      weight: 3,
+      opacity: 0.85,
+      dashArray: "6 4",
+    }).addTo(map);
+    trackLines.push(line);
+    return line;
   }
 
   function drawMarkerFor(icao24) {
@@ -178,7 +247,11 @@
     const lat = st[S.LAT], lon = st[S.LON];
     if (lat == null || lon == null) return;
     const kind = st[S.ON_GROUND] ? "ground" : "air";
-    const mk = L.marker([lat, lon], { icon: makeIcon(kind) }).addTo(map);
+    clearTrackLines();
+    // 画选中航班轨迹
+    const cs = (st[S.CALLSIGN] || "").trim();
+    if (cs) drawCombinedTrack(cs);
+    const mk = L.marker([lat, lon], { icon: makePlaneIcon(kind, st[S.TRACK]) }).addTo(map);
     mk.on("click", () => showDetail(st));
     markers.push(mk);
     map.panTo([lat, lon], { animate: true });
@@ -259,7 +332,8 @@
     status("正在查询「" + prefix + "」的实时航班…", "loading");
     elSearch.disabled = true;
     try {
-      const states = await fetchStates();
+      const [states, tracks] = await Promise.all([fetchStates(), fetchTracks()]);
+      currentTracks = tracks;
       // 匹配：完整航班号精确（统一转 ICAO，如 CA1654→CCA1654），否则按航司前缀
       const upraw = raw.trim().toUpperCase();
       const isFullFlight = /^[A-Z]{2,3}\d{1,4}$/.test(upraw);
@@ -287,7 +361,8 @@
     if (elAuto.checked && pendingQuery) {
       refreshTimer = setInterval(async () => {
         try {
-          const states = await fetchStates();
+          const [states, tracks] = await Promise.all([fetchStates(), fetchTracks()]);
+          currentTracks = tracks;
           const matched = states.filter((s) => matchQuery(s, pendingQuery));
           renderResults(matched, pendingQuery);
           elLast.textContent = fmtGenerated();
@@ -306,6 +381,7 @@
       selectedIcao = null;
       elDetail.classList.add("hidden");
       clearMarkers();
+      clearTrackLines();
       renderList();
     });
     elAuto.addEventListener("change", setupAutoRefresh);
@@ -321,6 +397,8 @@
       const total = st.filter((s) => s[S.CALLSIGN] && s[S.CALLSIGN].trim()).length;
       status(`数据已就绪，当前区域约 ${total} 架航班可查。输入航班号或航司开始。`, "ok");
       elLast.textContent = fmtGenerated();
+      // 预加载轨迹数据
+      fetchTracks().then((t) => { currentTracks = t; }).catch(() => {});
     }).catch((e) => status(e.message, "error"));
   }
 

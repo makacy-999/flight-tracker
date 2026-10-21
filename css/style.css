@@ -210,6 +210,11 @@ body {
 .leaflet-container { background: #0e1420; font-family: inherit; }
 .leaflet-control-zoom a { background: var(--panel2) !important; color: var(--text) !important; border-color: var(--border) !important; }
 
+/* 飞机图标：SVG 旋转以中心为轴 */
+.plane-icon { background: transparent; border: none; }
+.plane-icon > div { transform-origin: center center; }
+.plane-icon svg { display: block; }
+
 /* 响应式 */
 @media (max-width: 820px) {
   .left-panel { width: 100%; flex-basis: auto; border-right: none; border-bottom: 1px solid var(--border); max-height: 46vh; }
