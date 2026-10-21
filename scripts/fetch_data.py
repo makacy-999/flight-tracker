@@ -56,6 +56,7 @@ def main():
             "lon": s[5], "lat": s[6],
             "alt": s[7], "vel": s[9],
             "track": s[10], "vrate": s[11],
+            "cat": s[17] if len(s) > 17 else None,   # OpenSky category(用于机型分类)
             "t": s[4] or now_ts
         })
     flights = {"generated": now.isoformat(), "time": now_ts,
