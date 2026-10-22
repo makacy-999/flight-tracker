@@ -12,31 +12,49 @@ const el = {
   auto: document.getElementById("auto"), clear: document.getElementById("clear")
 };
 
-// ── Cesium Viewer ─────────────────────────────────────────────
-window.CESIUM_BASE_URL = "https://cdn.jsdelivr.net/npm/cesium@1.124.0/Build/Cesium";
-const viewer = new Cesium.Viewer("cesiumContainer", {
-  animation: false, timeline: false, baseLayerPicker: false,
-  geocoder: false, homeButton: false, sceneModePicker: false,
-  navigationHelpButton: false, fullscreenButton: true,
-  infoBox: false, selectionIndicator: false,
-  terrainProvider: new Cesium.EllipsoidTerrainProvider(),
-});
-viewer.scene.globe.enableLighting = true;
-viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString("#0a0f1e");
-viewer.scene.backgroundColor = Cesium.Color.fromCssColorString("#04040a");
-// god-eye-view 氛围：大气辉光 + 夜光
-viewer.scene.globe.showGroundAtmosphere = true;
-viewer.scene.globe.atmosphereLightIntensity = 1.2;
-viewer.scene.globe.atmosphereHazeRatio = 0.6;
-viewer.camera.setView({ destination: Cesium.Cartesian3.fromDegrees(106, 35, 2800000) });
+// ── Cesium Viewer（由 startApp 在 Cesium 引擎就绪后初始化）──
+let viewer = null;
 
-// 高德底图（国内可用）
-const gaode = new Cesium.UrlTemplateImageryProvider({
-  url: "https://webrd{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}",
-  subdomains: ["0", "1", "2", "3"],
-  maximumLevel: 18,
-});
-viewer.imageryLayers.addImageryProvider(gaode);
+function startApp() {
+  if (!window.Cesium) return false;
+  window.CESIUM_BASE_URL = window.__CESIUM_BASE || "https://cdn.jsdelivr.net/npm/cesium@1.124.0/Build/Cesium";
+  viewer = new Cesium.Viewer("cesiumContainer", {
+    animation: false, timeline: false, baseLayerPicker: false,
+    geocoder: false, homeButton: false, sceneModePicker: false,
+    navigationHelpButton: false, fullscreenButton: true,
+    infoBox: false, selectionIndicator: false,
+    terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+  });
+  viewer.scene.globe.enableLighting = true;
+  viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString("#0a0f1e");
+  viewer.scene.backgroundColor = Cesium.Color.fromCssColorString("#04040a");
+  // god-eye-view 氛围：大气辉光 + 夜光
+  viewer.scene.globe.showGroundAtmosphere = true;
+  viewer.scene.globe.atmosphereLightIntensity = 1.2;
+  viewer.scene.globe.atmosphereHazeRatio = 0.6;
+  viewer.camera.setView({ destination: Cesium.Cartesian3.fromDegrees(106, 35, 2800000) });
+
+  // 高德底图（国内可用）—— {s} 子域语法，{1-4} 是无效语法会导致底图空白
+  const gaode = new Cesium.UrlTemplateImageryProvider({
+    url: "https://webrd{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}",
+    subdomains: ["0", "1", "2", "3"],
+    maximumLevel: 18,
+  });
+  viewer.imageryLayers.addImageryProvider(gaode);
+  startApp.__started = true;
+  return true;
+}
+
+// 等 Cesium 引擎就绪后启动（html 的 fallback loader 会触发，或自轮询）
+function ensureStart() {
+  if (startApp.__started) return;
+  if (window.Cesium) { startApp(); }
+  else {
+    window.__GEVINIT = function () { if (!startApp.__started) startApp(); run(); };
+    setTimeout(function () { if (!startApp.__started && window.Cesium) { startApp(); run(); } }, 400);
+  }
+}
+window.__GEVINIT = ensureStart;
 
 // ── 状态 ─────────────────────────────────────────────────────
 let flights = [];
@@ -268,9 +286,11 @@ function schedule() {
 el.auto.addEventListener("change", schedule);
 
 // ── 启动 ─────────────────────────────────────────────────────
-(async function init() {
+// 数据部分不依赖 Cesium，可立即执行；3D 渲染等 Cesium 就绪后由 startApp 驱动
+function run() {
   renderList();
-  await loadTracks();
-  await loadFlights();
+  loadTracks();
+  loadFlights();
   schedule();
-})();
+}
+ensureStart();

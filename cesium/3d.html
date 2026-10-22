@@ -113,7 +113,42 @@
     3D 引擎：CesiumJS（god-eye-view 同款）· 飞机图标/机型分类移植自 <a href="https://github.com/bilawalsidhu/gods-eye-view" style="color:var(--accent2)" target="_blank" rel="noopener">gods-eye-view</a> · 底图：高德地图
   </footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/cesium@1.124.0/Build/Cesium/Cesium.js"></script>
+  <!-- Cesium 多 CDN fallback 加载器：任一 CDN 被墙则自动切换到下一个，确保 3D 引擎必然加载成功 -->
+  <script>
+    (function () {
+      var CDNS = [
+        "https://cdn.jsdelivr.net/npm/cesium@1.124.0/Build/Cesium",
+        "https://unpkg.com/cesium@1.124.0/Build/Cesium",
+        "https://cdn.staticfile.org/cesium/1.124.0/Build/Cesium"
+      ];
+      window.__CESIUM_BASE = CDNS[0];
+      var i = 0, timer = null;
+      function tryLoad() {
+        if (i >= CDNS.length) { document.getElementById("cesiumContainer").innerHTML = '<div style="color:#f59e0b;padding:20px;font-size:14px">3D 引擎加载失败，请检查网络后刷新。</div>'; return; }
+        var base = CDNS[i];
+        window.__CESIUM_BASE = base;
+        var sc = document.createElement("script");
+        sc.src = base + "/Cesium.js";
+        sc.onload = function () {
+          clearTimeout(timer);
+          if (window.Cesium) { bootApp(); return; }
+          i++; setTimeout(tryLoad, 50);
+        };
+        sc.onerror = function () { i++; tryLoad(); };
+        document.head.appendChild(sc);
+        clearTimeout(timer);
+        timer = setTimeout(function () { if (!window.Cesium) { i++; tryLoad(); } }, 15000);
+      }
+      function bootApp() {
+        // 标记 Cesium 就绪后，主脚本 3d.js(module) 会检查此标志并初始化
+        window.__CESIUM_READY = true;
+        // 若 3d.js 已作为 module 提前执行(此时 Cesium 未就绪)，则等待后再初始化
+        if (window.__GEVINIT) { setTimeout(window.__GEVINIT, 300); }
+        // CSS 也需在 BASE_URL 下
+      }
+      tryLoad();
+    })();
+  </script>
   <script src="../js/airlines.js"></script>
   <script>
     // airlines.js 是普通脚本(top-level const)，module 作用域不可见，显式挂到 window
