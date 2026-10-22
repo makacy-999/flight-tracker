@@ -297,4 +297,11 @@ function run() {
   loadFlights();
   schedule();
 }
-ensureStart();
+// 全局错误捕获：任何 JS 异常都显示提示而非黑屏，便于定位
+window.addEventListener("error", function (e) {
+  const cont = document.getElementById("cesiumContainer");
+  if (cont && !cont.innerHTML) {
+    cont.innerHTML = '<div style="color:#f59e0b;padding:20px;font-size:13px">3D 引擎初始化出错：' + (e.message || "未知错误") + ' 请刷新或检查网络。</div>';
+  }
+});
+boot();
