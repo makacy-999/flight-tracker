@@ -24,11 +24,16 @@ const viewer = new Cesium.Viewer("cesiumContainer", {
 viewer.scene.globe.enableLighting = true;
 viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString("#0a0f1e");
 viewer.scene.backgroundColor = Cesium.Color.fromCssColorString("#04040a");
-viewer.camera.setView({ destination: Cesium.Cartesian3.fromDegrees(106, 35, 2600000) });
+// god-eye-view 氛围：大气辉光 + 夜光
+viewer.scene.globe.showGroundAtmosphere = true;
+viewer.scene.globe.atmosphereLightIntensity = 1.2;
+viewer.scene.globe.atmosphereHazeRatio = 0.6;
+viewer.camera.setView({ destination: Cesium.Cartesian3.fromDegrees(106, 35, 2800000) });
 
 // 高德底图（国内可用）
 const gaode = new Cesium.UrlTemplateImageryProvider({
-  url: "https://webrd0{1-4}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}",
+  url: "https://webrd{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}",
+  subdomains: ["0", "1", "2", "3"],
   maximumLevel: 18,
 });
 viewer.imageryLayers.addImageryProvider(gaode);
@@ -85,6 +90,9 @@ function classLabel(k) {
 
 // ── 3D 渲染 ─────────────────────────────────────────────────
 function renderPlanes(list) {
+  // 重新构建本次航集，供清理判断（修复此前 seenCalls 从来不为空导致每次全删重建的闪烁）
+  seenCalls.clear();
+  for (const f of list) if (f && f.callsign) seenCalls.add(f.callsign);
   // 移除不在当前集的 billboard
   for (const cs of Object.keys(billboards)) {
     if (!seenCalls.has(cs)) {
