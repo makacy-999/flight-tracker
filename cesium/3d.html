@@ -127,6 +127,8 @@
         if (i >= CDNS.length) { document.getElementById("cesiumContainer").innerHTML = '<div style="color:#f59e0b;padding:20px;font-size:14px">3D 引擎加载失败，请检查网络后刷新。</div>'; return; }
         var base = CDNS[i];
         window.__CESIUM_BASE = base;
+        // 关键：必须在 Cesium.js 脚本执行前设置 CESIUM_BASE_URL，否则其 Workers/Assets 会按错误路径加载
+        window.CESIUM_BASE_URL = base;
         var sc = document.createElement("script");
         sc.src = base + "/Cesium.js";
         sc.onload = function () {
@@ -140,11 +142,9 @@
         timer = setTimeout(function () { if (!window.Cesium) { i++; tryLoad(); } }, 15000);
       }
       function bootApp() {
-        // 标记 Cesium 就绪后，主脚本 3d.js(module) 会检查此标志并初始化
+        // 触发 3d.js(module) 里注册的启动函数，创建 viewer 并加载数据
         window.__CESIUM_READY = true;
-        // 若 3d.js 已作为 module 提前执行(此时 Cesium 未就绪)，则等待后再初始化
-        if (window.__GEVINIT) { setTimeout(window.__GEVINIT, 300); }
-        // CSS 也需在 BASE_URL 下
+        if (window.__GEVINIT) window.__GEVINIT();
       }
       tryLoad();
     })();

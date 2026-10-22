@@ -46,15 +46,19 @@ function startApp() {
 }
 
 // 等 Cesium 引擎就绪后启动（html 的 fallback loader 会触发，或自轮询）
-function ensureStart() {
-  if (startApp.__started) return;
-  if (window.Cesium) { startApp(); }
-  else {
-    window.__GEVINIT = function () { if (!startApp.__started) startApp(); run(); };
-    setTimeout(function () { if (!startApp.__started && window.Cesium) { startApp(); run(); } }, 400);
-  }
+// 只有一个启动路径：startApp() 成功后必须接着 run() 去加载数据、渲染飞机。
+function boot() {
+  if (startApp.__started) { run(); return; }
+  if (window.Cesium && startApp()) { run(); }
 }
-window.__GEVINIT = ensureStart;
+window.__GEVINIT = boot;
+// 若 Cesium 尚未就绪（module 先于动态 script 执行），注册就绪回调并短暂轮询兜底
+if (!window.Cesium) {
+  window.__GEVINIT = function () { boot(); };
+  setTimeout(boot, 500);
+} else {
+  setTimeout(boot, 50);
+}
 
 // ── 状态 ─────────────────────────────────────────────────────
 let flights = [];
