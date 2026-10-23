@@ -7,8 +7,8 @@
 
   // ---------- 配置 ----------
   // 数据来源：GitHub Actions 定时抓取的静态 JSON（来自 OpenSky，规避其 CORS 限制）
-  const DATA_URL = "https://raw.githubusercontent.com/makacy-999/flight-tracker/main/data/flights.json";
-  const TRACKS_URL = "https://raw.githubusercontent.com/makacy-999/flight-tracker/main/data/tracks.json";
+  const DATA_URL = "data/flights.json";
+  const TRACKS_URL = "data/tracks.json";
   const REFRESH_MS = 30000;   // 前端定时刷新读取最新 JSON
   const MATCH_CACHE_TTL = 60000;
 

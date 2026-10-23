@@ -1,0 +1,19 @@
+/* app.wxss —— 全局：与 Web 端同一套 god-eye-view 暗色 token */
+page {
+  background: #05060a;
+  color: #e8eaed;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+  height: 100%;
+}
+
+.mono {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  letter-spacing: 0.02em;
+}
+
+.glass {
+  background: rgba(10, 12, 20, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 16rpx;
+  box-shadow: 0 12rpx 40rpx rgba(0, 0, 0, 0.5);
+}

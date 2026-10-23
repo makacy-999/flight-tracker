@@ -1,0 +1,105 @@
+<view class="page">
+
+  <!-- 顶部：品牌 + 搜索 -->
+  <view class="hud-top">
+    <view class="brand-row">
+      <view class="eye"></view>
+      <view class="brand-txt">
+        <text class="brand-title">GOD'S EYE</text>
+        <text class="brand-sub">航班实时监视 · {{statusText}}</text>
+      </view>
+      <text class="badge mono">TRACKED {{total}}</text>
+    </view>
+
+    <view class="search-row">
+      <input
+        class="search-input mono"
+        type="text"
+        value="{{query}}"
+        placeholder="航班号 / 航司  如 CCA856"
+        placeholder-class="ph"
+        confirm-type="search"
+        bindinput="onSearchInput"
+        bindconfirm="onSearchConfirm"
+      />
+      <view class="btn-search" bindtap="onSearchConfirm">锁定</view>
+    </view>
+
+    <scroll-view class="chips" scroll-x enable-flex>
+      <view class="chip {{query === '' ? 'on' : ''}}" data-q="" bindtap="onQuickTap">全部</view>
+      <view class="chip {{query === 'CCA' ? 'on' : ''}}" data-q="CCA" bindtap="onQuickTap">国航</view>
+      <view class="chip {{query === 'CSN' ? 'on' : ''}}" data-q="CSN" bindtap="onQuickTap">南航</view>
+      <view class="chip {{query === 'CES' ? 'on' : ''}}" data-q="CES" bindtap="onQuickTap">东航</view>
+      <view class="chip {{query === 'CHH' ? 'on' : ''}}" data-q="CHH" bindtap="onQuickTap">海航</view>
+      <view class="chip {{query === 'CPA' ? 'on' : ''}}" data-q="CPA" bindtap="onQuickTap">国泰</view>
+    </scroll-view>
+  </view>
+
+  <!-- 地图 -->
+  <map
+    id="flightMap"
+    class="map"
+    latitude="{{centerLat}}"
+    longitude="{{centerLon}}"
+    scale="{{scale}}"
+    markers="{{markers}}"
+    polyline="{{polyline}}"
+    show-location="{{false}}"
+    enable-rotate="{{false}}"
+    enable-overlooking="{{false}}"
+    bindmarkertap="onMarkerTap"
+    bindregionchange="onRegionChange"
+    bindtap="onMapTap"
+  ></map>
+
+  <!-- 底部状态条 -->
+  <view class="hud-bottom">
+    <text class="mono dim">快照 <text class="accent">{{dataTime}}</text></text>
+    <text class="mono dim">显示 <text class="accent">{{shown}}</text> / {{total}}</text>
+  </view>
+
+  <!-- 搜索结果列表 -->
+  <view class="sheet glass" wx:if="{{showList}}">
+    <view class="sheet-head">
+      <text class="mono dim">MATCHED {{resultList.length}}</text>
+      <text class="close" bindtap="closeList">收起</text>
+    </view>
+    <scroll-view scroll-y class="sheet-body">
+      <view
+        class="row"
+        wx:for="{{resultList}}"
+        wx:key="cs"
+        data-cs="{{item.cs}}"
+        bindtap="onListItemTap"
+      >
+        <text class="row-cs mono">{{item.callsign}}</text>
+        <text class="row-air">{{item.airline}}</text>
+        <text class="row-tag {{item.flying ? 'air' : 'gnd'}}">{{item.flying ? 'AIR' : 'GND'}}</text>
+        <text class="row-num mono">{{item.altKm}}km</text>
+        <text class="row-num mono">{{item.speed}}km/h</text>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 选中航班详情 -->
+  <view class="detail glass" wx:if="{{detail}}">
+    <view class="dt-head">
+      <text class="dt-cs mono">{{detail.callsign}}</text>
+      <text class="dt-air">{{detail.airline}}</text>
+      <text class="dt-close" bindtap="clearSelect">✕</text>
+    </view>
+    <view class="dt-grid">
+      <view class="cell"><text class="k">机型</text><text class="v mono">{{detail.type}}</text></view>
+      <view class="cell"><text class="k">高度</text><text class="v mono">{{detail.altKm}}km</text></view>
+      <view class="cell"><text class="k">地速</text><text class="v mono">{{detail.speed}}km/h</text></view>
+      <view class="cell"><text class="k">航向</text><text class="v mono">{{detail.heading}}°</text></view>
+      <view class="cell"><text class="k">纬度</text><text class="v mono">{{detail.lat}}</text></view>
+      <view class="cell"><text class="k">经度</text><text class="v mono">{{detail.lon}}</text></view>
+    </view>
+    <view class="dt-foot mono">
+      <text class="dim">ICAO24 {{detail.icao}}</text>
+      <text class="dim">{{detail.country}}</text>
+    </view>
+  </view>
+
+</view>

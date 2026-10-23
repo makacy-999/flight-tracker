@@ -1,0 +1,20 @@
+{
+  "pages": [
+    "pages/index/index"
+  ],
+  "window": {
+    "backgroundTextStyle": "dark",
+    "navigationBarBackgroundColor": "#05060a",
+    "navigationBarTitleText": "GOD'S EYE · 航班监视",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#05060a"
+  },
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于在地图上定位您附近的空域航班"
+    }
+  },
+  "requiredPrivateInfos": ["getLocation"],
+  "sitemapLocation": "sitemap.json",
+  "style": "v2"
+}
